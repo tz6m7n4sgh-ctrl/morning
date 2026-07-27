@@ -38,7 +38,17 @@ const els = {
   sourceLink: document.getElementById("source-link"),
 };
 
-els.sourceLink.href = `${SUPABASE_URL}/project/default/editor`;
+// Link to the Supabase dashboard for this project (ref = first hostname label).
+const projectRef = new URL(SUPABASE_URL).hostname.split(".")[0];
+els.sourceLink.href = `https://supabase.com/dashboard/project/${projectRef}/editor`;
+
+// Keep sticky day-labels below the real header height (it varies by viewport).
+const headerEl = document.querySelector(".site-header");
+function syncHeaderHeight() {
+  document.documentElement.style.setProperty("--header-h", `${headerEl.offsetHeight}px`);
+}
+syncHeaderHeight();
+window.addEventListener("resize", syncHeaderHeight);
 
 // Events -------------------------------------------------------------------
 els.tabs.forEach((tab) => {
@@ -133,18 +143,32 @@ function paint() {
     .join("");
 }
 
+// Search only user-visible text fields — not ids or raw timestamps.
+const HIDDEN_FIELDS = new Set(["id", "created_at"]);
 function filterRows(rows, filter) {
   if (!filter) return rows;
   return rows.filter((row) =>
-    Object.values(row).some(
-      (v) => v != null && String(v).toLowerCase().includes(filter)
+    Object.entries(row).some(
+      ([k, v]) =>
+        !HIDDEN_FIELDS.has(k) && v != null && String(v).toLowerCase().includes(filter)
     )
   );
 }
 
+// Only link out to http(s) URLs — anything else renders as plain text.
+function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function renderNewsCard(row) {
-  const title = row.url
-    ? `<a href="${escapeAttr(row.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.title)}</a>`
+  const href = row.url && safeUrl(row.url);
+  const title = href
+    ? `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.title)}</a>`
     : escapeHtml(row.title);
   return `
     <article class="card">
@@ -159,8 +183,9 @@ function renderNewsCard(row) {
 
 function renderModelCard(row) {
   const name = [row.model, row.version].filter(Boolean).join(" ");
-  const title = row.url
-    ? `<a href="${escapeAttr(row.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(name)}</a>`
+  const href = row.url && safeUrl(row.url);
+  const title = href
+    ? `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(name)}</a>`
     : escapeHtml(name);
   return `
     <article class="card">
