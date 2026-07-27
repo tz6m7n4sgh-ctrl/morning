@@ -176,7 +176,7 @@ a { color: inherit; }
 .day-group { margin-top: 26px; }
 .day-label {
   position: sticky;
-  top: 64px;
+  top: var(--header-h, 80px);
   display: inline-block;
   font-size: 12px;
   font-weight: 650;
