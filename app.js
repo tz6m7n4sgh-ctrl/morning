@@ -1,7 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { marked } from "https://esm.sh/marked@12";
+import DOMPurify from "https://esm.sh/dompurify@3";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Every link inside rendered brief markdown opens in a new tab safely.
+// DOMPurify already strips javascript:/data: hrefs and event-handler
+// attributes by default; this hook only adds target/rel on top of that.
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName === "A") {
+    node.setAttribute("target", "_blank");
+    node.setAttribute("rel", "noopener noreferrer");
+  }
+});
 
 // i18n ---------------------------------------------------------------------
 const I18N = {
@@ -10,6 +22,7 @@ const I18N = {
     tagline: "Your daily AI & tech news digest",
     tabNews: "News digest",
     tabModels: "Model releases",
+    tabBrief: "Intelligence Brief",
     searchPlaceholder: "Filter by keyword, source…",
     refresh: "Refresh",
     refreshTitle: "Reload the latest items",
@@ -21,6 +34,7 @@ const I18N = {
     nothingTitle: "Nothing to show",
     emptyNews: "No news items yet. The daily digest will populate this table each morning.",
     emptyModels: "No model releases recorded yet.",
+    emptyBrief: "No intelligence brief yet. It will be generated each morning.",
     noMatch: (q) => `No items match “${q}”.`,
     items: (n) => `${n} item${n === 1 ? "" : "s"}`,
     errorTitle: "Couldn’t load the digest",
@@ -28,12 +42,20 @@ const I18N = {
     errorGeneric: "There was a problem reaching Supabase.",
     footer: "Data from Supabase · Digest generated daily",
     footerLink: "view raw table info",
+    briefTitle: "Daily Intelligence Brief",
+    scoreGlobalRisk: "Global Risk",
+    scoreMarketRisk: "Market Risk",
+    scoreAiCompetition: "AI Competition",
+    scoreBusinessOpportunity: "Business Opportunity",
+    recommendedFocus: "Recommended focus",
+    readFullBrief: "Read full brief",
   },
   ar: {
     dir: "rtl",
     tagline: "موجزك اليومي لأخبار الذكاء الاصطناعي والتقنية",
     tabNews: "موجز الأخبار",
     tabModels: "إصدارات النماذج",
+    tabBrief: "الموجز الاستخباراتي",
     searchPlaceholder: "تصفية حسب كلمة مفتاحية أو مصدر…",
     refresh: "تحديث",
     refreshTitle: "إعادة تحميل أحدث العناصر",
@@ -45,6 +67,7 @@ const I18N = {
     nothingTitle: "لا يوجد شيء لعرضه",
     emptyNews: "لا توجد أخبار بعد. سيقوم الموجز اليومي بتعبئة هذا الجدول كل صباح.",
     emptyModels: "لم تُسجَّل أي إصدارات نماذج بعد.",
+    emptyBrief: "لا يوجد موجز استخباراتي بعد. سيتم إنشاؤه كل صباح.",
     noMatch: (q) => `لا توجد عناصر تطابق «${q}».`,
     items: (n) =>
       n === 1 ? "عنصر واحد" : n === 2 ? "عنصران" : n <= 10 ? `${n} عناصر` : `${n} عنصرًا`,
@@ -53,6 +76,13 @@ const I18N = {
     errorGeneric: "حدثت مشكلة في الوصول إلى Supabase.",
     footer: "البيانات من Supabase · يُنشأ الموجز يوميًا",
     footerLink: "عرض معلومات الجدول",
+    briefTitle: "الموجز الاستخباراتي اليومي",
+    scoreGlobalRisk: "المخاطر العالمية",
+    scoreMarketRisk: "مخاطر السوق",
+    scoreAiCompetition: "المنافسة في الذكاء الاصطناعي",
+    scoreBusinessOpportunity: "الفرص التجارية",
+    recommendedFocus: "التركيز الموصى به",
+    readFullBrief: "قراءة الموجز كاملاً",
   },
 };
 
@@ -83,7 +113,17 @@ const VIEWS = {
     render: renderModelCard,
     groupBy: (row) => dayKey(row.release_date || row.created_at),
   },
+  brief: {
+    table: "daily_intel_briefs",
+    order: "report_date",
+    orderOpts: { ascending: false },
+    emptyKey: "emptyBrief",
+    render: renderBriefCard,
+    groupBy: (row) => dateOnlyKey(row.report_date),
+  },
 };
+
+const TAB_LABEL_KEYS = { news: "tabNews", models: "tabModels", brief: "tabBrief" };
 
 const state = {
   view: "news",
@@ -115,7 +155,7 @@ function applyLanguage() {
   document.documentElement.dir = I18N[lang].dir;
   els.tagline.textContent = t("tagline");
   els.tabs.forEach((tab) => {
-    tab.textContent = tab.dataset.view === "news" ? t("tabNews") : t("tabModels");
+    tab.textContent = t(TAB_LABEL_KEYS[tab.dataset.view]);
   });
   els.search.placeholder = t("searchPlaceholder");
   els.refreshLabel.textContent = t("refresh");
@@ -312,6 +352,64 @@ function renderModelCard(row) {
     </article>`;
 }
 
+// Scoreboard ----------------------------------------------------------------
+// Risk-type scores: 0 = good (green), 10 = bad (red). Opportunity-type
+// scores invert that (0 = bad, 10 = good).
+const SCORE_FIELDS = [
+  { key: "global_risk", labelKey: "scoreGlobalRisk", invert: false },
+  { key: "market_risk", labelKey: "scoreMarketRisk", invert: false },
+  { key: "ai_competition", labelKey: "scoreAiCompetition", invert: false },
+  { key: "business_opportunity", labelKey: "scoreBusinessOpportunity", invert: true },
+];
+
+function scoreLevel(value, invert) {
+  const v = invert ? 10 - value : value;
+  if (v <= 3) return "low";
+  if (v <= 6) return "mid";
+  return "high";
+}
+
+function scoreboardHtml(row) {
+  const chips = SCORE_FIELDS.filter((f) => row[f.key] != null)
+    .map((f) => {
+      const value = row[f.key];
+      const level = scoreLevel(value, f.invert);
+      return `
+        <div class="score-chip score-${level}">
+          <span class="score-value">${escapeHtml(value)}</span>
+          <span class="score-label">${escapeHtml(t(f.labelKey))}</span>
+        </div>`;
+    })
+    .join("");
+  return chips ? `<div class="scoreboard">${chips}</div>` : "";
+}
+
+// Markdown rendering — sanitized with DOMPurify (defense in depth; the
+// content originates from our own pipeline, but is still untrusted database
+// content by the time it reaches the browser, same as every other field).
+function renderMarkdown(md) {
+  if (!md) return "";
+  const rawHtml = marked.parse(md, { breaks: true });
+  return DOMPurify.sanitize(rawHtml, { ADD_ATTR: ["target"] });
+}
+
+function renderBriefCard(row) {
+  const isLatest = row.report_date === state.rows[0]?.report_date;
+  const focusHtml = row.recommended_focus
+    ? `<p class="brief-focus"><strong>${escapeHtml(t("recommendedFocus"))}:</strong> ${escapeHtml(row.recommended_focus)}</p>`
+    : "";
+  return `
+    <article class="card brief-card">
+      <h3 class="card-title">${escapeHtml(t("briefTitle"))}</h3>
+      ${scoreboardHtml(row)}
+      ${focusHtml}
+      <details class="brief-details"${isLatest ? " open" : ""}>
+        <summary>${escapeHtml(t("readFullBrief"))}</summary>
+        <div class="brief-body">${renderMarkdown(row.content_md)}</div>
+      </details>
+    </article>`;
+}
+
 // States -------------------------------------------------------------------
 function showSkeleton() {
   els.feed.innerHTML =
@@ -357,6 +455,18 @@ function dayKey(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "unknown";
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+// Parse a plain SQL `date` string ("YYYY-MM-DD", no time/zone) into the same
+// key format dayKey() produces, using LOCAL y/m/d construction. Avoids the
+// classic off-by-one-day bug from `new Date("YYYY-MM-DD")`, which ECMA-262
+// parses as UTC midnight — comparing that against local getFullYear/getMonth/
+// getDate() shifts the date back a day in any negative-UTC-offset timezone.
+function dateOnlyKey(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || "");
+  if (!m) return dayKey(value);
+  const [, y, mo, d] = m;
+  return `${Number(y)}-${Number(mo) - 1}-${Number(d)}`;
 }
 
 function dayLabel(key) {

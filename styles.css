@@ -99,7 +99,10 @@ a { color: inherit; }
   display: flex;
   gap: 4px;
   padding-top: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
   font: inherit;
   font-size: 14px;
@@ -114,6 +117,7 @@ a { color: inherit; }
 }
 .tab:hover { background: var(--surface-2); color: var(--text); }
 .tab.is-active { background: var(--accent-soft); color: var(--accent); }
+.tab { white-space: nowrap; }
 
 /* Toolbar */
 .toolbar {
@@ -248,6 +252,113 @@ a { color: inherit; }
   margin-bottom: 9px;
 }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+/* CIO Intelligence Brief */
+.scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.score-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+.score-value { font-weight: 700; font-size: 15px; }
+.score-label { color: inherit; opacity: .85; }
+.score-low {
+  background: color-mix(in srgb, #2ea043 14%, transparent);
+  color: #1a7f37;
+  border-color: color-mix(in srgb, #2ea043 30%, transparent);
+}
+.score-mid {
+  background: color-mix(in srgb, #d29922 16%, transparent);
+  color: #9a6700;
+  border-color: color-mix(in srgb, #d29922 32%, transparent);
+}
+.score-high {
+  background: color-mix(in srgb, #cf222e 14%, transparent);
+  color: #cf222e;
+  border-color: color-mix(in srgb, #cf222e 30%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  .score-low { color: #56d364; }
+  .score-mid { color: #e3b341; }
+  .score-high { color: #ff7b72; }
+}
+
+.brief-focus {
+  margin: 10px 0 0;
+  font-size: 14.5px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.brief-details { margin-top: 14px; }
+.brief-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+  padding: 6px 0;
+  list-style: none;
+}
+.brief-details summary::-webkit-details-marker { display: none; }
+.brief-details summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-inline-end: 6px;
+  transition: transform .15s ease;
+}
+.brief-details[open] summary::before { transform: rotate(90deg); }
+
+.brief-body {
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 14.5px;
+  color: var(--text-dim);
+  line-height: 1.65;
+}
+.brief-body h1, .brief-body h2, .brief-body h3, .brief-body h4 {
+  color: var(--text);
+  margin: 20px 0 8px;
+  line-height: 1.35;
+}
+.brief-body h1 { font-size: 18px; }
+.brief-body h2 { font-size: 16.5px; }
+.brief-body h3, .brief-body h4 { font-size: 15px; }
+.brief-body > :first-child { margin-top: 0; }
+.brief-body p { margin: 0 0 10px; }
+.brief-body ul, .brief-body ol { margin: 0 0 10px; padding-inline-start: 22px; }
+.brief-body li { margin-bottom: 4px; }
+.brief-body strong { color: var(--text); }
+.brief-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.brief-body a { color: var(--accent); }
+.brief-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 10px;
+  font-size: 13.5px;
+}
+.brief-body th, .brief-body td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: start;
+}
+.brief-body code {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 13px;
+}
 
 /* Footer */
 .site-footer {
