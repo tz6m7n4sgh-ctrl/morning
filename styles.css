@@ -67,6 +67,7 @@ a { color: inherit; }
   padding-block: 14px;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
 .brand-mark { font-size: 30px; line-height: 1; }
 .brand h1 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
 .tagline { margin: 0; font-size: 13px; color: var(--text-dim); }
@@ -257,6 +258,15 @@ a { color: inherit; }
   text-align: center;
 }
 .site-footer a { color: var(--text-dim); }
+
+/* RTL (Arabic) refinements */
+[dir="rtl"] body,
+[dir="rtl"] .card-summary,
+[dir="rtl"] .tagline {
+  letter-spacing: 0;
+}
+[dir="rtl"] .day-label { letter-spacing: 0; }
+[dir="rtl"] .brand h1 { letter-spacing: 0; }
 
 @media (max-width: 480px) {
   .tagline { display: none; }

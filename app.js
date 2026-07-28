@@ -3,19 +3,83 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// i18n ---------------------------------------------------------------------
+const I18N = {
+  en: {
+    dir: "ltr",
+    tagline: "Your daily AI & tech news digest",
+    tabNews: "News digest",
+    tabModels: "Model releases",
+    searchPlaceholder: "Filter by keyword, source…",
+    refresh: "Refresh",
+    refreshTitle: "Reload the latest items",
+    langToggle: "العربية",
+    langToggleTitle: "التبديل إلى العربية",
+    today: "Today",
+    yesterday: "Yesterday",
+    undated: "Undated",
+    nothingTitle: "Nothing to show",
+    emptyNews: "No news items yet. The daily digest will populate this table each morning.",
+    emptyModels: "No model releases recorded yet.",
+    noMatch: (q) => `No items match “${q}”.`,
+    items: (n) => `${n} item${n === 1 ? "" : "s"}`,
+    errorTitle: "Couldn’t load the digest",
+    errorRls: "The table is protected by Row Level Security and the public key isn’t allowed to read it yet. Add a read policy for the <code>anon</code> role (see the project README).",
+    errorGeneric: "There was a problem reaching Supabase.",
+    footer: "Data from Supabase · Digest generated daily",
+    footerLink: "view raw table info",
+  },
+  ar: {
+    dir: "rtl",
+    tagline: "موجزك اليومي لأخبار الذكاء الاصطناعي والتقنية",
+    tabNews: "موجز الأخبار",
+    tabModels: "إصدارات النماذج",
+    searchPlaceholder: "تصفية حسب كلمة مفتاحية أو مصدر…",
+    refresh: "تحديث",
+    refreshTitle: "إعادة تحميل أحدث العناصر",
+    langToggle: "English",
+    langToggleTitle: "Switch to English",
+    today: "اليوم",
+    yesterday: "أمس",
+    undated: "بدون تاريخ",
+    nothingTitle: "لا يوجد شيء لعرضه",
+    emptyNews: "لا توجد أخبار بعد. سيقوم الموجز اليومي بتعبئة هذا الجدول كل صباح.",
+    emptyModels: "لم تُسجَّل أي إصدارات نماذج بعد.",
+    noMatch: (q) => `لا توجد عناصر تطابق «${q}».`,
+    items: (n) =>
+      n === 1 ? "عنصر واحد" : n === 2 ? "عنصران" : n <= 10 ? `${n} عناصر` : `${n} عنصرًا`,
+    errorTitle: "تعذّر تحميل الموجز",
+    errorRls: "الجدول محمي بأمان مستوى الصفوف (RLS) والمفتاح العام غير مسموح له بالقراءة بعد. أضِف سياسة قراءة لدور <code>anon</code> (انظر ملف README الخاص بالمشروع).",
+    errorGeneric: "حدثت مشكلة في الوصول إلى Supabase.",
+    footer: "البيانات من Supabase · يُنشأ الموجز يوميًا",
+    footerLink: "عرض معلومات الجدول",
+  },
+};
+
+const LANG_KEY = "morning-lang";
+function t(key, ...args) {
+  const entry = I18N[state.lang][key];
+  return typeof entry === "function" ? entry(...args) : entry;
+}
+function dateLocale() {
+  return state.lang === "ar" ? "ar" : undefined;
+}
+
 // View definitions ---------------------------------------------------------
 const VIEWS = {
   news: {
     table: "ai_news_digest",
     order: "created_at",
-    empty: "No news items yet. The daily digest will populate this table each morning.",
+    emptyKey: "emptyNews",
     render: renderNewsCard,
     groupBy: (row) => dayKey(row.created_at),
   },
   models: {
     table: "ai_model_releases",
-    order: "created_at",
-    empty: "No model releases recorded yet.",
+    // Sort by actual release date (undated entries last), not insertion time.
+    order: "release_date",
+    orderOpts: { ascending: false, nullsFirst: false },
+    emptyKey: "emptyModels",
     render: renderModelCard,
     groupBy: (row) => dayKey(row.release_date || row.created_at),
   },
@@ -25,6 +89,7 @@ const state = {
   view: "news",
   rows: [],
   filter: "",
+  lang: localStorage.getItem(LANG_KEY) === "ar" ? "ar" : "en",
 };
 
 // Elements -----------------------------------------------------------------
@@ -34,9 +99,33 @@ const els = {
   count: document.getElementById("count"),
   search: document.getElementById("search"),
   refresh: document.getElementById("refresh"),
+  refreshLabel: document.getElementById("refresh-label"),
   tabs: Array.from(document.querySelectorAll(".tab")),
   sourceLink: document.getElementById("source-link"),
+  tagline: document.getElementById("tagline"),
+  langToggle: document.getElementById("lang-toggle"),
+  footerText: document.getElementById("footer-text"),
 };
+
+// Apply the current language to all static chrome, direction, and dates.
+function applyLanguage() {
+  const lang = state.lang;
+  localStorage.setItem(LANG_KEY, lang);
+  document.documentElement.lang = lang;
+  document.documentElement.dir = I18N[lang].dir;
+  els.tagline.textContent = t("tagline");
+  els.tabs.forEach((tab) => {
+    tab.textContent = tab.dataset.view === "news" ? t("tabNews") : t("tabModels");
+  });
+  els.search.placeholder = t("searchPlaceholder");
+  els.refreshLabel.textContent = t("refresh");
+  els.refresh.title = t("refreshTitle");
+  els.langToggle.textContent = t("langToggle");
+  els.langToggle.title = t("langToggleTitle");
+  els.footerText.innerHTML =
+    `${escapeHtml(t("footer"))} · <a id="source-link" href="${escapeAttr(els.sourceLink.href)}" rel="noopener">${escapeHtml(t("footerLink"))}</a>`;
+  els.sourceLink = document.getElementById("source-link");
+}
 
 // Link to the Supabase dashboard for this project (ref = first hostname label).
 const projectRef = new URL(SUPABASE_URL).hostname.split(".")[0];
@@ -73,6 +162,12 @@ els.search.addEventListener("input", () => {
 
 els.refresh.addEventListener("click", load);
 
+els.langToggle.addEventListener("click", () => {
+  state.lang = state.lang === "ar" ? "en" : "ar";
+  applyLanguage();
+  paint();
+});
+
 // Data ---------------------------------------------------------------------
 async function load() {
   const view = VIEWS[state.view];
@@ -83,7 +178,7 @@ async function load() {
   const { data, error } = await supabase
     .from(view.table)
     .select("*")
-    .order(view.order, { ascending: false })
+    .order(view.order, view.orderOpts || { ascending: false })
     .limit(500);
 
   els.refresh.classList.remove("is-loading");
@@ -104,18 +199,16 @@ function paint() {
   const view = VIEWS[state.view];
   const rows = filterRows(state.rows, state.filter);
 
-  els.count.textContent = rows.length
-    ? `${rows.length} item${rows.length === 1 ? "" : "s"}`
-    : "";
+  els.count.textContent = rows.length ? t("items", rows.length) : "";
 
   if (!state.rows.length) {
     els.feed.innerHTML = "";
-    showEmpty(view.empty);
+    showEmpty(t(view.emptyKey));
     return;
   }
   if (!rows.length) {
     els.feed.innerHTML = "";
-    showEmpty(`No items match “${escapeHtml(state.filter)}”.`);
+    showEmpty(t("noMatch", escapeHtml(state.filter)));
     return;
   }
   els.status.innerHTML = "";
@@ -220,7 +313,7 @@ function showSkeleton() {
 function showEmpty(message) {
   els.status.innerHTML = `
     <div class="state">
-      <h2>Nothing to show</h2>
+      <h2>${escapeHtml(t("nothingTitle"))}</h2>
       <p>${message}</p>
     </div>`;
 }
@@ -232,12 +325,8 @@ function showError(error) {
   els.feed.innerHTML = "";
   els.status.innerHTML = `
     <div class="state error">
-      <h2>Couldn’t load the digest</h2>
-      <p>${
-        rls
-          ? "The table is protected by Row Level Security and the public key isn’t allowed to read it yet. Add a read policy for the <code>anon</code> role (see the project README)."
-          : "There was a problem reaching Supabase."
-      }</p>
+      <h2>${escapeHtml(t("errorTitle"))}</h2>
+      <p>${rls ? t("errorRls") : escapeHtml(t("errorGeneric"))}</p>
       <pre>${escapeHtml(error.message || String(error))}</pre>
     </div>`;
 }
@@ -251,15 +340,15 @@ function dayKey(value) {
 }
 
 function dayLabel(key) {
-  if (key === "unknown") return "Undated";
+  if (key === "unknown") return t("undated");
   const [y, m, d] = key.split("-").map(Number);
   const date = new Date(y, m, d);
   const today = new Date();
   const yest = new Date();
   yest.setDate(today.getDate() - 1);
-  if (sameDay(date, today)) return "Today";
-  if (sameDay(date, yest)) return "Yesterday";
-  return date.toLocaleDateString(undefined, {
+  if (sameDay(date, today)) return t("today");
+  if (sameDay(date, yest)) return t("yesterday");
+  return date.toLocaleDateString(dateLocale(), {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -279,7 +368,7 @@ function timeLabel(value) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString(dateLocale(), { hour: "numeric", minute: "2-digit" });
 }
 
 function escapeHtml(str) {
@@ -296,4 +385,5 @@ function escapeAttr(str) {
 }
 
 // Go -----------------------------------------------------------------------
+applyLanguage();
 load();
