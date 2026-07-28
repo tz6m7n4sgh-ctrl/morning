@@ -19,13 +19,16 @@
         <span class="brand-mark" aria-hidden="true">🌅</span>
         <div>
           <h1>Morning</h1>
-          <p class="tagline">Your daily AI &amp; tech news digest</p>
+          <p class="tagline" id="tagline">Your daily AI &amp; tech news digest</p>
         </div>
       </div>
-      <button id="refresh" class="btn" type="button" title="Reload the latest items">
-        <span class="btn-icon" aria-hidden="true">↻</span>
-        <span>Refresh</span>
-      </button>
+      <div class="header-actions">
+        <button id="lang-toggle" class="btn" type="button" title="التبديل إلى العربية">العربية</button>
+        <button id="refresh" class="btn" type="button" title="Reload the latest items">
+          <span class="btn-icon" aria-hidden="true">↻</span>
+          <span id="refresh-label">Refresh</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -49,7 +52,7 @@
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>Data from Supabase · Digest generated daily · <a id="source-link" href="#" rel="noopener">view raw table info</a></p>
+      <p id="footer-text">Data from Supabase · Digest generated daily · <a id="source-link" href="#" rel="noopener">view raw table info</a></p>
     </div>
   </footer>
 
