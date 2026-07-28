@@ -248,6 +248,16 @@ function filterRows(rows, filter) {
   );
 }
 
+// Summaries may be stored bilingually as "EN: <english> AR: <arabic>".
+// Show the half matching the active language; plain summaries pass through.
+function localizedSummary(summary) {
+  if (!summary) return null;
+  const m = summary.match(/^\s*EN:\s*([\s\S]*?)\s*AR:\s*([\s\S]*)$/);
+  if (!m) return summary;
+  const [, en, ar] = m;
+  return (state.lang === "ar" ? ar : en).trim() || summary;
+}
+
 // Only link out to http(s) URLs — anything else renders as plain text.
 function safeUrl(url) {
   try {
@@ -258,6 +268,16 @@ function safeUrl(url) {
   }
 }
 
+// Arabic-script detection so a single card's summary direction follows
+// its actual text, independent of the page-wide language toggle.
+const ARABIC_RE = /[؀-ۿ]/;
+function summaryHtml(rawSummary) {
+  const text = localizedSummary(rawSummary);
+  if (!text) return "";
+  const dir = ARABIC_RE.test(text) ? "rtl" : "ltr";
+  return `<p class="card-summary" dir="${dir}">${escapeHtml(text)}</p>`;
+}
+
 function renderNewsCard(row) {
   const href = row.url && safeUrl(row.url);
   const title = href
@@ -266,7 +286,7 @@ function renderNewsCard(row) {
   return `
     <article class="card">
       <h3 class="card-title">${title}</h3>
-      ${row.summary ? `<p class="card-summary">${escapeHtml(row.summary)}</p>` : ""}
+      ${summaryHtml(row.summary)}
       <div class="card-meta">
         ${row.source ? `<span class="badge">${escapeHtml(row.source)}</span>` : ""}
         <span>${escapeHtml(timeLabel(row.created_at))}</span>
@@ -283,7 +303,7 @@ function renderModelCard(row) {
   return `
     <article class="card">
       <h3 class="card-title">${title}</h3>
-      ${row.summary ? `<p class="card-summary">${escapeHtml(row.summary)}</p>` : ""}
+      ${summaryHtml(row.summary)}
       <div class="card-meta">
         ${row.vendor ? `<span class="badge">${escapeHtml(row.vendor)}</span>` : ""}
         ${row.source ? `<span class="badge neutral">${escapeHtml(row.source)}</span>` : ""}
