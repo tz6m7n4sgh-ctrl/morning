@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2b2350"/>
+      <stop offset="45%" stop-color="#7a3f6d"/>
+      <stop offset="75%" stop-color="#e4593f"/>
+      <stop offset="100%" stop-color="#ff9d4d"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="100%" stop-color="#ffb347"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a2f4f"/>
+      <stop offset="100%" stop-color="#471e46"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background (full bleed for maskable) -->
+  <rect width="512" height="512" fill="url(#sky)"/>
+
+  <!-- Sun glow -->
+  <circle cx="256" cy="330" r="150" fill="#ffcf7d" opacity="0.25"/>
+  <circle cx="256" cy="330" r="110" fill="#ffd98f" opacity="0.3"/>
+
+  <!-- Sun, half-risen behind the horizon -->
+  <circle cx="256" cy="330" r="86" fill="url(#sun)"/>
+
+  <!-- Rays -->
+  <g stroke="#ffe1a1" stroke-width="14" stroke-linecap="round" opacity="0.9">
+    <line x1="256" y1="176" x2="256" y2="136"/>
+    <line x1="166" y1="212" x2="138" y2="184"/>
+    <line x1="346" y1="212" x2="374" y2="184"/>
+    <line x1="128" y1="298" x2="90"  y2="290"/>
+    <line x1="384" y1="298" x2="422" y2="290"/>
+  </g>
+
+  <!-- Sea / horizon -->
+  <rect y="330" width="512" height="182" fill="url(#sea)"/>
+
+  <!-- Sun reflection on water -->
+  <g fill="#ffb763">
+    <rect x="196" y="346" width="120" height="12" rx="6" opacity="0.85"/>
+    <rect x="212" y="372" width="88"  height="10" rx="5" opacity="0.6"/>
+    <rect x="226" y="396" width="60"  height="9"  rx="4.5" opacity="0.4"/>
+    <rect x="236" y="418" width="40"  height="8"  rx="4" opacity="0.25"/>
+  </g>
+</svg>
